@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import * as d3 from "d3";
-import xexoid from "hexoid";
 import hexoid from "hexoid";
+
+const RADIUS = 5;
 
 const Person = ({ x, y, infected, dead, recovered }) => {
   let strokeColor = "violet";
@@ -21,7 +22,7 @@ const Person = ({ x, y, infected, dead, recovered }) => {
     <circle
       cx={x}
       cy={y}
-      r="5"
+      r={RADIUS}
       style={{ fill: fillColor, stroke: strokeColor, strokeWidth: 2 }}
     ></circle>
   );
@@ -68,6 +69,46 @@ function peopleMove(population) {
   return population.map(p => ({ ...p, x: p.x + random(), y: p.y + random() }));
 }
 
+// when people collide, they transfer viruses
+function peopleCollisions(population) {
+  // we only cvare about infected people collisions
+  const infected = population.filter(p => p.infected);
+  // find people in vicinity of infected people
+  const collisions = infected.map(person => {
+    // subdevides whole space to find nearest candidates
+    const subdevidedSpace = d3
+      .quadtree()
+      .extent([-1, -1], [RADIUS * 2, RADIUS * 2])
+      .x(d => d.x)
+      .y(d => d.y)
+      .addAll(
+        // everyone not infected an not current lookup
+        population.filter(p => !p.infected).filter(p => p.key !== person.key)
+      );
+    //person nearest to current lookup is candidate for collision
+    const candidate = subdevidedSpace.find(person.x, person.y, RADIUS * 2);
+    //person within RADIUS * 2 of lookup position
+    return candidate ? candidate : null;
+  });
+  return collisions.filter(p => p !== null);
+}
+
+//takes a population and list of contacts with infected persons,
+// decides who gets infected
+function infectPeople(population, contacts) {
+  const contactKeys = contacts.map(p => p.key);
+  return population.map(p => {
+    if (contactKeys.includes(p.key)) {
+      return {
+        ...p,
+        infected: true
+      };
+    } else {
+      return p;
+    }
+  });
+}
+
 function usePopulation({ cx, cy, width, height }) {
   const [population, setPopulation] = useState(
     createPopulation({
@@ -96,6 +137,10 @@ function usePopulation({ cx, cy, width, height }) {
     setPopulation(population => {
       let nextPopulation = [...population];
       nextPopulation = peopleMove(nextPopulation);
+      nextPopulation = infectPeople(
+        nextPopulation,
+        peopleCollisions(nextPopulation)
+      );
       return nextPopulation;
     });
   }
