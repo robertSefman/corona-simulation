@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import * as d3 from "d3";
+import xexoid from "hexoid";
+import hexoid from "hexoid";
 
 const Person = ({ x, y, infected, dead, recovered }) => {
   let strokeColor = "violet";
@@ -34,7 +36,8 @@ function createRow({ cx, cy, width }) {
 
   const row = d3.range(0, N).map(i => ({
     x: xScale(i),
-    y: cy
+    y: cy,
+    key: hexoid(25)()
   }));
 
   return row;
@@ -60,6 +63,11 @@ function createPopulation({ cx, cy, width, height }) {
   return rows.reduce((population, row) => [...population, ...row]);
 }
 
+function peopleMove(population) {
+  const random = d3.randomUniform(-1, 1);
+  return population.map(p => ({ ...p, x: p.x + random(), y: p.y + random() }));
+}
+
 function usePopulation({ cx, cy, width, height }) {
   const [population, setPopulation] = useState(
     createPopulation({
@@ -70,6 +78,8 @@ function usePopulation({ cx, cy, width, height }) {
     })
   );
 
+  const [simulating, sestSimulating] = useState(false);
+
   function startSimulation() {
     // Avoid changing values directly
     const nextPopulation = [...population];
@@ -77,9 +87,27 @@ function usePopulation({ cx, cy, width, height }) {
     const person =
       nextPopulation[Math.floor(Math.random() * nextPopulation.length)];
     person.infected = true;
+    sestSimulating(true);
     setPopulation(nextPopulation);
   }
 
+  function iteratePopulation() {
+    //calculate the next state of our population on each tick
+    setPopulation(population => {
+      let nextPopulation = [...population];
+      nextPopulation = peopleMove(nextPopulation);
+      return nextPopulation;
+    });
+  }
+
+  //runs the simulation loop
+  useEffect(() => {
+    if (simulating) {
+      const t = d3.timer(iteratePopulation);
+      // stop timer when cleaning up
+      return t.stop;
+    }
+  }, [simulating]);
   return { population, startSimulation };
 }
 
@@ -98,7 +126,9 @@ export const Population = ({ cx, cy, width, height }) => {
         ))}
       </svg>
       <div>
-        <button onClick={startSimulation}>Infect a person</button>
+        {population.find(p => p.infected) ? null : (
+          <button onClick={startSimulation}>Infect a person</button>
+        )}
       </div>
     </>
   );
