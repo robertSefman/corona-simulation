@@ -1,11 +1,25 @@
 import React from "react";
 import { Population } from "./Population";
 function App() {
-  return (
-    <div>
-      <h1>Visualizing the spread of viruses in population</h1>
+  const query = new URLSearchParams(window.location.search);
 
-      <Population cx={800} cy={200} width={400} height={300} />
+  return (
+    <div className="App">
+      <h1>
+        {query.get("title") ||
+          "Visualizing the spread of viruses in a population"}
+      </h1>
+      <Population
+        cx={400}
+        cy={200}
+        width={400}
+        height={300}
+        defaultMortality={query.get("mortality") || 4}
+        defaultVirality={query.get("virality") || 50}
+        defaultLengthOfInfection={query.get("lengthOfInfection") || 40}
+        defaultSocialDistancing={query.get("socialDistancing") || 0}
+        defaultReinfectability={query.get("reinfectability") || 30}
+      />
     </div>
   );
 }
